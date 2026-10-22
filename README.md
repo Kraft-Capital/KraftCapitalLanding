@@ -4,8 +4,9 @@ Landing page for Kraft Capital Academy.
 
 ## Live Website
 
-Once GitHub Pages is enabled, the site will be live at:
-👉 **[https://kraft-capital.github.io/KraftCapitalLanding/](https://kraft-capital.github.io/KraftCapitalLanding/)**
+Once GitHub Pages is deployed, the site will be live at:
+👉 **[https://kraftcapital.in](https://kraftcapital.in)**
+*(Fallback GitHub Pages URL: [https://kraft-capital.github.io/KraftCapitalLanding/](https://kraft-capital.github.io/KraftCapitalLanding/))*
 
 ## GitHub Pages Deployment
 
