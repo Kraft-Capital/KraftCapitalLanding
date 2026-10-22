@@ -173,7 +173,17 @@
       border-radius: 12px;
       border: 1px solid rgba(124, 58, 237, 0.25);
     }
-    .form-group { margin-bottom: 1.4rem; }
+    .form-group { margin-bottom: 1.4rem; position: relative; }
+    .field-error {
+      color: #f87171;
+      font-size: 0.85rem;
+      margin-top: 0.35rem;
+      display: none;
+    }
+    input.invalid, select.invalid {
+      border-color: #ef4444 !important;
+      background: rgba(239, 68, 68, 0.08) !important;
+    }
     label { display: block; margin-bottom: 0.4rem; color: #d1d5db; font-weight: 500; }
     input, select, textarea {
       width: 100%;
@@ -334,7 +344,7 @@
 
       <h2 style="margin-top:4rem;">Register Now</h2>
       <iframe name="google_form_iframe" id="google_form_iframe" style="display:none;" onload="handleIframeLoad()"></iframe>
-      <form id="courseRegisterForm" action="https://docs.google.com/forms/d/e/1FAIpQLSeMpr8C7liTALAvV_GUq7xis8fsFQBSk8-08W7PTWx8KTOMpw/formResponse" method="POST" target="google_form_iframe" onsubmit="return handleFormSubmit()">
+      <form id="courseRegisterForm" action="https://docs.google.com/forms/d/e/1FAIpQLSeMpr8C7liTALAvV_GUq7xis8fsFQBSk8-08W7PTWx8KTOMpw/formResponse" method="POST" target="google_form_iframe" onsubmit="return handleFormSubmit(event)">
         <input type="hidden" name="fvv" value="1">
         <input type="hidden" name="pageHistory" value="0">
 
@@ -344,11 +354,13 @@
         </div>
         <div class="form-group">
           <label for="entry_1237678661">Email id *</label>
-          <input type="email" id="entry_1237678661" name="entry.1237678661" placeholder="Enter your email address" required>
+          <input type="email" id="entry_1237678661" name="entry.1237678661" placeholder="Enter your email address" pattern="[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}" title="Please enter a valid email address (e.g. name@example.com)" required autocomplete="email">
+          <div class="field-error" id="emailError">Please enter a valid email address (e.g. name@example.com).</div>
         </div>
         <div class="form-group">
           <label for="entry_1385517676">Mobile number *</label>
-          <input type="tel" id="entry_1385517676" name="entry.1385517676" placeholder="Enter your mobile number" required>
+          <input type="tel" id="entry_1385517676" name="entry.1385517676" placeholder="Enter 10-digit mobile number" pattern="[0-9]{10}" maxlength="10" inputmode="numeric" title="Please enter a valid 10-digit mobile number" required autocomplete="tel">
+          <div class="field-error" id="mobileError">Mobile number must be numerical and exactly 10 digits.</div>
         </div>
         <div class="form-group">
           <label for="entry_187212942">Current Broker *</label>
@@ -420,20 +432,138 @@
     let formSubmitted = false;
     let submitTimeout = null;
 
-    function handleFormSubmit() {
-      formSubmitted = true;
+    const emailInput = document.getElementById('entry_1237678661');
+    const mobileInput = document.getElementById('entry_1385517676');
+
+    function showError(inputEl, errorId, msg) {
+      if (!inputEl) return;
+      inputEl.classList.add('invalid');
+      const errorEl = document.getElementById(errorId);
+      if (errorEl) {
+        if (msg) errorEl.textContent = msg;
+        errorEl.style.display = 'block';
+      }
+    }
+
+    function clearError(inputEl, errorId) {
+      if (!inputEl) return;
+      inputEl.classList.remove('invalid');
+      const errorEl = document.getElementById(errorId);
+      if (errorEl) {
+        errorEl.style.display = 'none';
+      }
+    }
+
+    // Restrict mobile input to numbers only & max 10 digits
+    if (mobileInput) {
+      mobileInput.addEventListener('input', function() {
+        this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10);
+        if (this.value.length === 10) {
+          clearError(this, 'mobileError');
+        }
+      });
+      mobileInput.addEventListener('blur', function() {
+        if (this.value && this.value.length !== 10) {
+          showError(this, 'mobileError', 'Mobile number must be numerical and exactly 10 digits.');
+        }
+      });
+    }
+
+    // Real-time email validation
+    if (emailInput) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/;
+      emailInput.addEventListener('input', function() {
+        if (emailRegex.test(this.value.trim())) {
+          clearError(this, 'emailError');
+        }
+      });
+      emailInput.addEventListener('blur', function() {
+        if (this.value && !emailRegex.test(this.value.trim())) {
+          showError(this, 'emailError', 'Please enter a valid email address (e.g. name@example.com).');
+        }
+      });
+    }
+
+    function validateCustomFields() {
+      let isValid = true;
+      let firstInvalidInput = null;
+
+      // Validate email
+      if (emailInput) {
+        const emailVal = emailInput.value.trim();
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/;
+        if (!emailRegex.test(emailVal)) {
+          showError(emailInput, 'emailError', 'Please enter a valid email address (e.g. name@example.com).');
+          isValid = false;
+          if (!firstInvalidInput) firstInvalidInput = emailInput;
+        } else {
+          clearError(emailInput, 'emailError');
+        }
+      }
+
+      // Validate mobile (exactly 10 digits)
+      if (mobileInput) {
+        const mobileVal = mobileInput.value.trim();
+        if (!/^[0-9]{10}$/.test(mobileVal)) {
+          showError(mobileInput, 'mobileError', 'Mobile number must be numerical and exactly 10 digits.');
+          isValid = false;
+          if (!firstInvalidInput) firstInvalidInput = mobileInput;
+        } else {
+          clearError(mobileInput, 'mobileError');
+        }
+      }
+
+      if (firstInvalidInput) {
+        firstInvalidInput.focus();
+      }
+
+      return isValid;
+    }
+
+    async function handleFormSubmit(e) {
+      if (e) e.preventDefault();
+
+      const form = document.getElementById('courseRegisterForm');
+      if (!form.checkValidity()) {
+        form.reportValidity();
+        return false;
+      }
+
+      if (!validateCustomFields()) {
+        return false;
+      }
+
       const submitBtn = document.getElementById('submitBtn');
       if (submitBtn) {
         submitBtn.innerText = 'Securing Your Seat...';
         submitBtn.style.pointerEvents = 'none';
         submitBtn.style.opacity = '0.75';
       }
-      submitTimeout = setTimeout(function() {
-        if (formSubmitted) {
+
+      const formData = new FormData(form);
+      const urlParams = new URLSearchParams(formData);
+
+      // Submit cleanly via fetch with no-cors to prevent X-Frame-Options console error
+      try {
+        await fetch(form.action, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          body: urlParams
+        });
+        showFormSuccess();
+      } catch (err) {
+        console.warn('Fetch fallback triggering:', err);
+        formSubmitted = true;
+        submitTimeout = setTimeout(function() {
           showFormSuccess();
-        }
-      }, 2000);
-      return true;
+        }, 2000);
+        form.submit();
+      }
+
+      return false;
     }
 
     function handleIframeLoad() {
@@ -465,6 +595,8 @@
       const successMsg = document.getElementById('formSuccessMessage');
       
       form.reset();
+      clearError(emailInput, 'emailError');
+      clearError(mobileInput, 'mobileError');
       
       const formGroups = form.querySelectorAll('.form-group');
       formGroups.forEach(function(el) { el.style.display = 'block'; });
